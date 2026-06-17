@@ -4,10 +4,50 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>sportshalltour</title>
+    <title>UTM Sports Hall 2 — Interactive 3D Tour</title>
   </head>
   <body>
-    <div id="app"></div>
+    <!-- The WebGL canvas is created and appended by main.js (id="three-canvas") -->
+
+    <!-- Crosshair (hidden until the tour begins) -->
+    <div id="crosshair" class="hidden"></div>
+
+    <!-- Day / Night toggle -->
+    <button id="day-night-toggle">🌙 Night</button>
+
+    <!-- Welcome screen overlay -->
+    <div id="welcome-screen">
+      <div class="welcome-content">
+        <h1>Interactive 3D Tour</h1>
+        <h2>UTM Sports Hall 2</h2>
+        <p>Explore UTM Sports Hall 2 — walk through the parking area,
+          enter the hall, and discover the indoor sports court.</p>
+        <button id="start-tour">Start Tour</button>
+      </div>
+    </div>
+
+    <!-- Instructions panel -->
+    <div id="instructions-panel" class="hidden">
+      <div class="panel-card">
+        <h2>How to Explore</h2>
+        <ul>
+          <li><strong>W A S D</strong> — Move around</li>
+          <li><strong>Mouse</strong> — Look around</li>
+          <li><strong>Crosshair on a glowing marker</strong> — Click to learn more</li>
+          <li><strong>🌙 / ☀️ button</strong> — Switch between day and night</li>
+          <li><strong>Esc</strong> — Release the mouse</li>
+        </ul>
+        <button id="begin-exploring">Begin Exploring</button>
+      </div>
+    </div>
+
+    <!-- Information popup card -->
+    <div id="info-popup" class="hidden">
+      <button id="info-popup-close" aria-label="Close">×</button>
+      <h2 id="info-popup-title"></h2>
+      <p id="info-popup-body"></p>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
