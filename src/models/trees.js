@@ -1,29 +1,45 @@
 import * as THREE from 'three'
 
-// Builds 10 very tall tropical rainforest trees scattered (not in rows) around
-// the sides and back of the parking area. Each tree has a thin tall trunk and
-// an irregular canopy made of several overlapping spheres.
+// Builds 18 very tall tropical rainforest trees placed along the central grass islands
+// and around the perimeter of the parking area, with randomized scales for realism.
 //
 // Returns: array of canopy sphere meshes (used as hover-highlight targets).
 export function buildTrees(scene) {
-  const trunkGeo = new THREE.CylinderGeometry(0.12, 0.2, 12, 10)
-  const trunkMat = new THREE.MeshLambertMaterial({ color: 0x3d2b1f })
-
   // Two canopy greens to alternate between.
-  const canopyGreens = [0x2d5a27, 0x3a6b2e]
+  const canopyGreens = [0x2d5a27, 0x3a6b2e, 0x427d3b]
 
-  // Scattered positions (x, z) — deliberately uneven.
+  // Positions (x, z) designed to match the reference photos:
+  // - Trees on the left island (x = -7.5) and right island (x = 7.5)
+  // - Trees on the left and right outer borders (x = -32, 32)
+  // - Trees on the front border slope (z = 45)
   const positions = [
-    [-22, 15],
-    [-25, 25],
-    [-20, 35],
-    [-18, 42],
-    [22, 15],
-    [26, 28],
-    [21, 38],
-    [24, 44],
-    [-10, 48],
-    [10, 48]
+    // Left grass island trees
+    [-7.5, 12],
+    [-7.5, 22],
+    [-7.5, 32],
+
+    // Right grass island trees
+    [7.5, 12],
+    [7.5, 22],
+    [7.5, 32],
+
+    // Left outer border trees
+    [-31, 10],
+    [-34, 20],
+    [-32, 30],
+    [-35, 40],
+
+    // Right outer border trees
+    [31, 10],
+    [34, 20],
+    [32, 30],
+    [35, 40],
+
+    // Front/Back border trees
+    [-20, 44],
+    [-8, 45],
+    [8, 45],
+    [20, 44]
   ]
 
   // Sphere "blob" recipe for the irregular canopy (radius + offsets).
@@ -40,26 +56,40 @@ export function buildTrees(scene) {
   positions.forEach(([px, pz], i) => {
     const tree = new THREE.Group()
 
-    // Trunk (centre at y=6 so it spans the ground up to y=12).
+    // Height scale factor based on index to create deterministic visual variety
+    const scaleFactor = 0.75 + ((i * 17) % 10) * 0.07 // 0.75 to 1.38
+    const trunkHeight = 10 * scaleFactor
+    const canopyBaseY = trunkHeight
+
+    // Trunk
+    const trunkGeo = new THREE.CylinderGeometry(0.12 * scaleFactor, 0.22 * scaleFactor, trunkHeight, 10)
+    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x423229 })
     const trunk = new THREE.Mesh(trunkGeo, trunkMat)
-    trunk.position.y = 6
+    trunk.position.y = trunkHeight / 2
     trunk.castShadow = true
     tree.add(trunk)
 
     // Irregular canopy of overlapping spheres, sitting on top of the trunk.
-    const baseColor = canopyGreens[i % 2]
+    const baseColor = canopyGreens[i % canopyGreens.length]
     blobs.forEach((b, j) => {
+      // Scale canopy spheres by the same scale factor
+      const r = b.r * scaleFactor
       const sphere = new THREE.Mesh(
-        new THREE.SphereGeometry(b.r, 12, 12),
+        new THREE.SphereGeometry(r, 12, 12),
         new THREE.MeshLambertMaterial({
-          // alternate the two greens within each canopy too
-          color: j % 2 === 0 ? baseColor : canopyGreens[(i + 1) % 2]
+          // alternate the greens within each canopy too
+          color: j % 2 === 0 ? baseColor : canopyGreens[(i + 1) % canopyGreens.length]
         })
       )
       // small natural jitter on top of the fixed offsets
-      const jx = (Math.random() - 0.5) * 1.5
-      const jz = (Math.random() - 0.5) * 1.5
-      sphere.position.set(b.x + jx, 12 + b.y, b.z + jz)
+      const jx = (Math.sin(i * 12 + j * 9) * 0.4) * scaleFactor
+      const jz = (Math.cos(i * 7 + j * 15) * 0.4) * scaleFactor
+      
+      sphere.position.set(
+        (b.x + jx) * scaleFactor,
+        canopyBaseY + (b.y + j) * 0.6 * scaleFactor,
+        (b.z + jz) * scaleFactor
+      )
       sphere.castShadow = true
       sphere.name = 'TreeCanopy'
       tree.add(sphere)

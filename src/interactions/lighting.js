@@ -9,12 +9,15 @@ import * as THREE from 'three'
 let ambientLight = null
 let directionalLight = null
 let lamps = []
+let globes = []
+let lobbyLight = null
 
 const DAY_SKY = 0x87ceeb
 const NIGHT_SKY = 0x0a0a1f
 
-export function setupLighting(scene, lampLights = []) {
+export function setupLighting(scene, lampLights = [], lampGlobes = []) {
   lamps = lampLights
+  globes = lampGlobes
 
   ambientLight = new THREE.AmbientLight(0xffffff, 0.7)
   scene.add(ambientLight)
@@ -37,6 +40,11 @@ export function setupLighting(scene, lampLights = []) {
     scene.add(light)
   }
 
+  // Warm ceiling point light for the entrance lobby interior
+  lobbyLight = new THREE.PointLight(0xffe3aa, 0, 12, 1.2)
+  lobbyLight.position.set(0, 4.0, 7.5) // centered inside the lobby ceiling
+  scene.add(lobbyLight)
+
   // Start in daytime.
   scene.background = new THREE.Color(DAY_SKY)
 }
@@ -47,7 +55,20 @@ export function toggleDayNight(isNight, scene) {
 
   for (const light of lamps) {
     light.color.setHex(0xffe8a0)
-    light.intensity = isNight ? 2.0 : 0
+    light.intensity = isNight ? 2.5 : 0
+  }
+
+  // Turn globe meshes' emissive properties on or off
+  for (const globe of globes) {
+    if (globe.material) {
+      globe.material.emissive.setHex(isNight ? 0xfff0c8 : 0x000000)
+      globe.material.emissiveIntensity = isNight ? 1.0 : 0
+    }
+  }
+
+  // Turn lobby interior ceiling light on or off
+  if (lobbyLight) {
+    lobbyLight.intensity = isNight ? 1.8 : 0
   }
 
   scene.background = new THREE.Color(isNight ? NIGHT_SKY : DAY_SKY)

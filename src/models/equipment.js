@@ -137,72 +137,93 @@ export function buildEquipment(scene) {
   }
 
   // ----------------------------------------------------------
-  // 7. CEILING TRUSSES (dark grey steel grid at y=10)
+  // 7. PITCHED PORTAL FRAMES (White concrete arches matching the roof shape)
+  //    Spans from side columns (x=-14.5, y=10) to the center peak (x=0, y=14.5).
   // ----------------------------------------------------------
-  const trussMat = new THREE.MeshLambertMaterial({ color: 0x333333 })
-  // Horizontal beams (span x), every 4 units in z from -14 to 4
-  const hBeamGeo = new THREE.BoxGeometry(28, 0.25, 0.25)
-  for (let z = -14; z <= 4; z += 4) {
-    const beam = new THREE.Mesh(hBeamGeo, trussMat)
-    beam.position.set(0, 10, z)
-    scene.add(beam)
-    meshes.push(beam)
-  }
-  // Vertical beams (span z), every 5 units in x from -13 to 13
-  const vBeamGeo = new THREE.BoxGeometry(0.25, 0.25, 18)
-  for (let x = -13; x <= 13; x += 5) {
-    const beam = new THREE.Mesh(vBeamGeo, trussMat)
-    beam.position.set(x, 10, -5)
-    scene.add(beam)
-    meshes.push(beam)
+  const frameMat = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 })
+  // We place portal frames every 4 units in z from -14 to 2
+  const frameZ = [-14, -10, -6, -2, 2]
+  const angle = Math.atan2(4.5, 14.5) // rise of 4.5 over run of 14.5
+
+  for (const z of frameZ) {
+    // Left sloped beam
+    const leftBeam = new THREE.Mesh(
+      new THREE.BoxGeometry(15.2, 0.45, 0.45),
+      frameMat
+    )
+    leftBeam.position.set(-7.25, 12.25, z)
+    leftBeam.rotation.z = angle // slopes up to the center
+    scene.add(leftBeam)
+    meshes.push(leftBeam)
+
+    // Right sloped beam
+    const rightBeam = new THREE.Mesh(
+      new THREE.BoxGeometry(15.2, 0.45, 0.45),
+      frameMat
+    )
+    rightBeam.position.set(7.25, 12.25, z)
+    rightBeam.rotation.z = -angle // slopes down from the center
+    scene.add(rightBeam)
+    meshes.push(rightBeam)
   }
 
   // ----------------------------------------------------------
-  // 8. SKYLIGHT PANELS between the trusses (translucent, y=9.9)
+  // 8. SLOPED SKYLIGHT PANELS (sitting flat on the ceiling slopes)
   // ----------------------------------------------------------
   const skyMat = new THREE.MeshLambertMaterial({
-    color: 0xc8e6c9,
+    color: 0xd8ebd5,
+    emissive: 0x9fcf9b,
+    emissiveIntensity: 0.3,
     transparent: true,
-    opacity: 0.25,
+    opacity: 0.8,
     side: THREE.DoubleSide
   })
-  const skyGeo = new THREE.PlaneGeometry(3.5, 3.5)
-  for (let x = -12; x <= 12; x += 4) {
-    for (let z = -13; z <= 3; z += 4) {
-      const panel = new THREE.Mesh(skyGeo, skyMat)
-      panel.rotation.x = -Math.PI / 2
-      panel.position.set(x, 9.9, z)
-      scene.add(panel)
-      meshes.push(panel)
-    }
+  const skyGeo = new THREE.PlaneGeometry(3.0, 2.2)
+  for (let z = -12; z <= 0; z += 4) {
+    // Left sloped skylight
+    const panelL = new THREE.Mesh(skyGeo, skyMat)
+    panelL.rotation.x = -Math.PI / 2
+    panelL.rotation.y = angle
+    panelL.position.set(-7.25, 12.2, z)
+    scene.add(panelL)
+    meshes.push(panelL)
+
+    // Right sloped skylight
+    const panelR = new THREE.Mesh(skyGeo, skyMat)
+    panelR.rotation.x = -Math.PI / 2
+    panelR.rotation.y = -angle
+    panelR.position.set(7.25, 12.2, z)
+    scene.add(panelR)
+    meshes.push(panelR)
   }
 
   // ----------------------------------------------------------
-  // 9. WHITE INTERIOR COLUMNS along both side walls
+  // 9. WHITE INTERIOR COLUMNS along both side walls (realigned to x=-14.8, 14.8)
   // ----------------------------------------------------------
-  const colMat = new THREE.MeshLambertMaterial({ color: 0xf0f0f0 })
-  const colGeo = new THREE.BoxGeometry(0.5, 6, 0.5)
-  const colZ = [-11, -7, -3, 1]
-  for (const x of [-12, 12]) {
+  const colMat = new THREE.MeshLambertMaterial({ color: 0xf5f5f5 })
+  const colGeo = new THREE.BoxGeometry(0.4, 10, 0.5)
+  const colZ = [-14, -10, -6, -2, 2]
+  for (const x of [-14.8, 14.8]) {
     for (const z of colZ) {
       const col = new THREE.Mesh(colGeo, colMat)
-      col.position.set(x, 3, z) // centre at y=3 (spans 0..6)
+      col.position.set(x, 5, z) // spans y=0..10
       col.castShadow = true
+      col.receiveShadow = true
       scene.add(col)
       meshes.push(col)
     }
   }
 
   // ----------------------------------------------------------
-  // 10. BLUE SPECTATOR CHAIRS along both sidelines (rows of 8)
+  // 10. BLUE SPECTATOR CHAIRS along both sidelines (rows of 10, realigned)
   // ----------------------------------------------------------
   const chairMat = new THREE.MeshLambertMaterial({ color: 0x1e5fa8 })
   const chairGeo = new THREE.BoxGeometry(0.5, 0.4, 0.5)
-  const chairCount = 8
-  const chairZStart = -11
-  const chairZEnd = 1
+  const chairCount = 10
+  const chairZStart = -13
+  const chairZEnd = 2
   const chairZStep = (chairZEnd - chairZStart) / (chairCount - 1)
-  for (const x of [-11, 11]) {
+  for (const x of [-13.8, 13.8]) {
     for (let i = 0; i < chairCount; i++) {
       const chair = new THREE.Mesh(chairGeo, chairMat)
       chair.position.set(x, 0.2, chairZStart + i * chairZStep)
@@ -213,20 +234,20 @@ export function buildEquipment(scene) {
   }
 
   // ----------------------------------------------------------
-  // 11. ROLL-UP METAL SHUTTER DOORS on the side walls
+  // 11. ROLL-UP METAL SHUTTER DOORS on the side walls (realigned)
   // ----------------------------------------------------------
-  const shutterMat = new THREE.MeshLambertMaterial({ color: 0x777777 })
-  const shutterGeo = new THREE.BoxGeometry(2.8, 2.8, 0.1)
+  const shutterMat = new THREE.MeshLambertMaterial({ color: 0x888a8f, roughness: 0.6 })
+  const shutterGeo = new THREE.BoxGeometry(2.8, 3.2, 0.1)
   const shutterPlacements = [
-    { x: -12.5, z: -10, rotY: Math.PI / 2 },
-    { x: -12.5, z: -2, rotY: Math.PI / 2 },
-    { x: 12.5, z: -10, rotY: Math.PI / 2 },
-    { x: 12.5, z: -2, rotY: Math.PI / 2 }
+    { x: -14.9, z: -8, rotY: Math.PI / 2 },
+    { x: -14.9, z: -4, rotY: Math.PI / 2 },
+    { x: 14.9, z: -8, rotY: Math.PI / 2 },
+    { x: 14.9, z: -4, rotY: Math.PI / 2 }
   ]
   for (const s of shutterPlacements) {
     const shutter = new THREE.Mesh(shutterGeo, shutterMat)
-    shutter.position.set(s.x, 1.5, s.z)
-    shutter.rotation.y = s.rotY // face into the court along the side walls
+    shutter.position.set(s.x, 1.6, s.z)
+    shutter.rotation.y = s.rotY
     scene.add(shutter)
     meshes.push(shutter)
   }

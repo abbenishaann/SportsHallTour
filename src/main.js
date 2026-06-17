@@ -72,17 +72,19 @@ scene.add(apron)
 /* ============================================================
    Build the world
    ============================================================ */
-const { building, lampLights } = buildBuilding(scene)
+const { building, lampLights, lampGlobes } = buildBuilding(scene)
 buildParking(scene)
 const treeCanopies = buildTrees(scene)
 const benches = buildBenches(scene)
 const equipment = buildEquipment(scene)
 
-setupLighting(scene, lampLights)
+setupLighting(scene, lampLights, lampGlobes)
 
 // Everything that should glow on hover.
+// Since building is a Group containing multiple hollow wall meshes, roof sections,
+// and lobby structures, we expand its children so each mesh responds to hover.
 const highlightTargets = [
-  building,
+  ...building.children,
   ...treeCanopies,
   ...benches,
   ...equipment
