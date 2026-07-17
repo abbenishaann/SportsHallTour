@@ -86,16 +86,28 @@
         </div>
       </div>
 
-      <!-- Top Right: Object Inspector (highly useful for user debugging) -->
-      <div id="hud-inspector" class="hud-card hud-top-right">
+      <!-- Top Right: Object Inspector (dev tool, toggle with Ctrl+I) -->
+      <div id="hud-inspector" class="hud-card hud-top-right hidden">
         <div class="hud-header">
           <h3>INSPECTOR MODE</h3>
         </div>
         <div class="hud-body">
           <p>Hovering over: <span id="hovered-object-name" class="highlight-val">None</span></p>
           <p>Last clicked: <span id="clicked-object-name" class="highlight-val">None</span></p>
-          <p class="inspector-hint">Click a mesh to view details or check developer console for exact mesh names!</p>
+          <p class="inspector-hint">Developer view — press Ctrl+I to hide. Click a mesh to log its exact name.</p>
         </div>
+      </div>
+
+      <!-- Bottom-Center: Interaction control bar -->
+      <div id="tour-controls" class="tour-controls">
+        <button id="btn-daynight" class="tour-btn" aria-pressed="false">
+          <span class="tb-icon" id="daynight-icon">🌙</span>
+          <span id="daynight-label">Night</span>
+        </button>
+        <button id="btn-path" class="tour-btn" aria-pressed="false">
+          <span class="tb-icon">🧭</span>
+          <span id="path-label">Show Path</span>
+        </button>
       </div>
     </div>
 
@@ -108,7 +120,12 @@
           <div class="info-tag">UTM CAMPUS FEATURE</div>
           <h2 id="info-title">Location Name</h2>
           <hr class="info-divider" />
+          <img id="info-image" class="info-image" src="" alt="" style="display:none" />
           <p id="info-desc">Description of this campus location...</p>
+          <div id="info-fact-wrap" class="info-fact-wrap" style="display:none">
+            <span class="info-fact-icon">💡</span>
+            <p id="info-fact" class="info-fact"></p>
+          </div>
         </div>
       </div>
     </div>

@@ -58,10 +58,11 @@ export class TourControls {
     this.orbitControls.minDistance = 3;
     this.orbitControls.maxDistance = 55;
     
-    // Position target (focus point) in front of camera
+    // Position camera and target at a natural walking eye level
+    this.camera.position.y = this.playerHeight;
     this.orbitControls.target.set(
       defaultSettings.startLookAt.x,
-      defaultSettings.startLookAt.y,
+      this.playerHeight,
       defaultSettings.startLookAt.z
     );
     this.orbitControls.update();
@@ -191,7 +192,9 @@ export class TourControls {
 
       // Translate camera and target together to slide/walk the view
       this.camera.position.add(displacement);
+      this.camera.position.y = this.playerHeight;
       this.orbitControls.target.add(displacement);
+      this.orbitControls.target.y = this.playerHeight;
 
       // 2. Map boundary clamping (prevent walk-off)
       let clamped = false;

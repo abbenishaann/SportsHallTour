@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as TWEEN from '@tweenjs/tween.js';
-import { hotspots, noticeBoard } from './locations.js';
+import { hotspots, noticeBoard, volleyballBanner } from './locations.js';
 
 /**
  * TourInteractions
@@ -44,25 +44,135 @@ export class TourInteractions {
   }
 
   init() {
-    this.createBeacons();
+    // Beacons are created in onModelReady() once the model is loaded and
+    // normalized, so anchors resolve to real feature positions. The lamp post
+    // and input listeners can be set up immediately.
     this.createProgrammaticLightPost();
     this.setupListeners();
   }
 
   /**
-   * Generates floating 3D beacons at hotspot coordinates
+   * Called by main.js after the GLB is loaded and normalized into world space.
+   * @param {THREE.Object3D} model - the normalized model root
+   * @param {(p:{x,y,z})=>THREE.Vector3} glbToWorld - maps raw-model anchor
+   *   coordinates into final world coordinates.
+   */
+  onModelReady(model, glbToWorld) {
+    this.glbToWorld = glbToWorld;
+    this.registerGLBModels(model);
+    this.createBeacons();
+    this.createVolleyballBanner();
+    this.createNavPath();
+  }
+
+  /**
+   * Builds a glowing navigation route that follows the walking path from the
+   * entrance through the interior hotspots. Hidden by default; toggled by the
+   * "Show / Hide Path" button. Rendered as a gold tube on the floor with cone
+   * arrows pointing along the direction of travel.
+   */
+  createNavPath() {
+    const group = new THREE.Group();
+    group.name = 'nav_path';
+
+    const FLOOR_Y = 0.15; // just above the floor so markers never sink or float
+    const order = ['entrance', 'court', 'equipment', 'basketball', 'deck'];
+    const pts = [new THREE.Vector3(0, FLOOR_Y, 34)]; // start out on the approach path
+    order.forEach((id) => {
+      const s = hotspots.find((h) => h.id === id);
+      if (s && s.position) pts.push(new THREE.Vector3(s.position.x, FLOOR_Y, s.position.z));
+    });
+    if (pts.length < 2) return;
+
+    // Smooth glowing tube following the route.
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.4);
+    const tubeGeo = new THREE.TubeGeometry(curve, pts.length * 24, 0.14, 8, false);
+    const tubeMat = new THREE.MeshStandardMaterial({
+      color: 0xF1A400,
+      emissive: 0xF1A400,
+      emissiveIntensity: 0.9,
+      roughness: 0.3,
+      metalness: 0.4,
+      transparent: true,
+      opacity: 0.9
+    });
+    const tube = new THREE.Mesh(tubeGeo, tubeMat);
+    tube.renderOrder = 998;
+    group.add(tube);
+
+    // Direction arrows spaced along the curve.
+    const arrowCount = pts.length * 3;
+    const arrowGeo = new THREE.ConeGeometry(0.35, 0.8, 12);
+    const arrowMat = new THREE.MeshStandardMaterial({
+      color: 0xffd968,
+      emissive: 0xF1A400,
+      emissiveIntensity: 0.7,
+      roughness: 0.3
+    });
+    for (let i = 0; i < arrowCount; i++) {
+      const t = (i + 0.5) / arrowCount;
+      const pos = curve.getPointAt(t);
+      const tan = curve.getTangentAt(t).normalize();
+      const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+      arrow.position.copy(pos);
+      arrow.position.y = FLOOR_Y + 0.05;
+      // Cone points +Y by default; rotate to lie flat pointing along the tangent.
+      const flat = new THREE.Vector3(tan.x, 0, tan.z).normalize();
+      arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), flat);
+      group.add(arrow);
+    }
+
+    group.visible = false;
+    this.scene.add(group);
+    this.navPathGroup = group;
+  }
+
+  /**
+   * Shows/hides the navigation route. Returns the new visibility state.
+   */
+  toggleNavPath() {
+    if (!this.navPathGroup) return false;
+    this.navPathGroup.visible = !this.navPathGroup.visible;
+    return this.navPathGroup.visible;
+  }
+
+  /**
+   * Brightens hotspot beacons at night so they stay easy to spot in low light.
+   * @param {boolean} isNight
+   */
+  setNightMode(isNight) {
+    const boost = isNight ? 1.6 : 0.5;
+    this.beacons.forEach((group) => {
+      group.traverse((child) => {
+        if (child.isMesh && child.material && child.material.emissive) {
+          child.material.emissiveIntensity = boost;
+        }
+      });
+    });
+  }
+
+  /**
+   * Generates floating 3D beacons at each hotspot's resolved world position.
    */
   createBeacons() {
     hotspots.forEach((spot) => {
       // Skip light switch coordinates for floating beacons, as it has a custom post mesh
       if (spot.id === "light_switch") return;
 
+      // Resolve the hotspot's world position from its GLB-space anchor.
+      const world = (spot.anchor && this.glbToWorld)
+        ? this.glbToWorld(spot.anchor)
+        : new THREE.Vector3(spot.position.x, spot.position.y, spot.position.z);
+      // Persist for camera tweening and animation.
+      spot.position = { x: world.x, y: world.y, z: world.z };
+      spot.cameraLook = { x: world.x, y: world.y, z: world.z };
+
       const group = new THREE.Group();
-        group.position.set(spot.position.x, spot.position.y + 0.4, spot.position.z);
+      group.position.set(world.x, world.y + 0.4, world.z);
       group.name = `beacon_${spot.id}`;
       // store the hotspot's base Y on the group so animation uses correct reference
       group.userData = group.userData || {};
-      group.userData.baseY = spot.position.y;
+      group.userData.baseY = world.y;
 
       // Outer gold ring
       const ringGeo = new THREE.TorusGeometry(0.3, 0.05, 8, 24);
@@ -125,8 +235,9 @@ export class TourInteractions {
    * Provides the interactive light switch toggle object.
    */
   createProgrammaticLightPost() {
-    const postX = 6;
-    const postZ = 6;
+    // Placed just off the entrance path, in front of the (normalized) building.
+    const postX = 10;
+    const postZ = 24;
 
     // Post Group
     const lightGroup = new THREE.Group();
@@ -183,6 +294,54 @@ export class TourInteractions {
   }
 
   /**
+   * Builds a wall-mounted volleyball banner from the supplied image as a
+   * textured PlaneGeometry. The plane's height is derived from the image's
+   * real aspect ratio (no stretching), it casts/receives shadows, and uses
+   * anisotropic + trilinear filtering for crisp text at grazing angles.
+   */
+  createVolleyballBanner() {
+    const cfg = volleyballBanner;
+    const loader = new THREE.TextureLoader();
+    loader.load(cfg.image, (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = 8;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+
+      const aspect = (texture.image && texture.image.height)
+        ? texture.image.width / texture.image.height
+        : 1.4;
+      const w = cfg.width;
+      const h = w / aspect; // preserve aspect ratio
+
+      const geo = new THREE.PlaneGeometry(w, h);
+      const mat = new THREE.MeshStandardMaterial({
+        map: texture,
+        roughness: 0.85,
+        metalness: 0.0,
+        side: THREE.DoubleSide
+      });
+      const banner = new THREE.Mesh(geo, mat);
+      banner.position.set(cfg.position.x, cfg.position.y, cfg.position.z);
+      banner.rotation.y = cfg.rotationY;
+      banner.castShadow = true;
+      banner.receiveShadow = true;
+      banner.name = 'VolleyballBanner';
+
+      // A thin maroon backing frame so it reads as a mounted banner, not a
+      // floating decal, and never appears to intersect the wall behind it.
+      const frameGeo = new THREE.PlaneGeometry(w * 1.06, h * 1.08);
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x8A1538, roughness: 0.6, side: THREE.DoubleSide });
+      const frame = new THREE.Mesh(frameGeo, frameMat);
+      frame.position.set(0, 0, -0.03);
+      banner.add(frame);
+
+      this.scene.add(banner);
+      this.volleyballBannerMesh = banner;
+    });
+  }
+
+  /**
    * Registers mouse listeners for raycast triggers
    */
   setupListeners() {
@@ -194,10 +353,11 @@ export class TourInteractions {
     };
 
     const onClick = (event) => {
-      // Raycast click
-      if (this.controls.enabled) {
-        this.checkClick();
-      }
+      if (!this.controls.enabled) return;
+      // Only raycast when the click actually landed on the 3D canvas - not on a
+      // HUD button, info panel, or other HTML overlay sitting above it.
+      if (!event.target || event.target.tagName !== 'CANVAS') return;
+      this.checkClick();
     };
 
     window.addEventListener('mousemove', onMouseMove);
@@ -323,24 +483,56 @@ export class TourInteractions {
   }
 
   /**
+   * Populates and reveals the slide-in info card: title, description, and
+   * (when present) a photo and a "fun fact". An optional status line is
+   * appended to the description (used by the light toggle).
+   *
+   * @param {Object} spot - hotspot data
+   * @param {string} [extraStatus] - optional extra status line
+   */
+  showInfoCard(spot, extraStatus) {
+    const infoPanel = document.getElementById('info-panel');
+    const infoTitle = document.getElementById('info-title');
+    const infoDesc = document.getElementById('info-desc');
+    const infoImg = document.getElementById('info-image');
+    const infoFact = document.getElementById('info-fact');
+    const infoFactWrap = document.getElementById('info-fact-wrap');
+    if (!infoPanel || !infoTitle || !infoDesc) return;
+
+    infoTitle.textContent = spot.name;
+    infoDesc.textContent = extraStatus ? `${spot.description}\n\n${extraStatus}` : spot.description;
+
+    if (infoImg) {
+      if (spot.image) {
+        infoImg.src = spot.image;
+        infoImg.alt = spot.name;
+        infoImg.style.display = 'block';
+      } else {
+        infoImg.removeAttribute('src');
+        infoImg.style.display = 'none';
+      }
+    }
+    if (infoFact && infoFactWrap) {
+      if (spot.funFact) {
+        infoFact.textContent = spot.funFact;
+        infoFactWrap.style.display = 'flex';
+      } else {
+        infoFactWrap.style.display = 'none';
+      }
+    }
+    infoPanel.classList.remove('hidden');
+  }
+
+  /**
    * Displays details popup for clicked location hotspot
-   * 
+   *
    * @param {string} id - The hotspot identifier
    */
   triggerHotspot(id) {
     const spot = hotspots.find(s => s.id === id);
     if (!spot) return;
 
-    // Trigger HTML Info overlay panel
-    const infoPanel = document.getElementById('info-panel');
-    const infoTitle = document.getElementById('info-title');
-    const infoDesc = document.getElementById('info-desc');
-
-    if (infoPanel && infoTitle && infoDesc) {
-      infoTitle.textContent = spot.name;
-      infoDesc.textContent = spot.description;
-      infoPanel.classList.remove('hidden');
-    }
+    this.showInfoCard(spot);
 
     // Mark HUD checklist item
     const chkHotspot = document.getElementById('chk-hotspots');
@@ -394,17 +586,10 @@ export class TourInteractions {
     // Trigger HTML panel for light info
     const lightSpot = hotspots.find(s => s.id === "light_switch");
     if (lightSpot) {
-      const infoPanel = document.getElementById('info-panel');
-      const infoTitle = document.getElementById('info-title');
-      const infoDesc = document.getElementById('info-desc');
-
-      if (infoPanel && infoTitle && infoDesc) {
-        infoTitle.textContent = lightSpot.name;
-        infoDesc.textContent = this.lightOn
-          ? `${lightSpot.description} \n\n[Status: The pathway spotlights are currently turned ON.]`
-          : `${lightSpot.description} \n\n[Status: The spotlights are currently turned OFF. Thank you for conserving energy!]`;
-        infoPanel.classList.remove('hidden');
-      }
+      const status = this.lightOn
+        ? "[Status: The pathway spotlights are currently turned ON.]"
+        : "[Status: The spotlights are currently turned OFF. Thank you for conserving energy!]";
+      this.showInfoCard(lightSpot, status);
     }
 
     // Mark HUD checklist item
@@ -437,65 +622,16 @@ export class TourInteractions {
         child.userData.type = 'glb_mesh';
       }
     });
-    // After registering model meshes, adjust beacon base heights so they sit above actual geometry
-    this._adjustBeaconsToScene();
   }
 
   /**
-   * Raycast from above each beacon to detect the nearest GLB surface below and
-   * update the beacon's stored baseY and world position so it won't be hidden
-   * inside the imported model geometry.
-   */
-  _adjustBeaconsToScene() {
-    if (!this.beacons || this.beacons.length === 0) return;
-
-    const down = new THREE.Vector3(0, -1, 0);
-    const origin = new THREE.Vector3();
-
-    this.beacons.forEach((group) => {
-      // Raycast from far above the beacon's X,Z coordinate
-      origin.set(group.position.x, 50, group.position.z);
-      this.raycaster.set(origin, down);
-
-      // Intersect with all known scene meshes and pick the GLB mesh hit whose Y
-      // is closest to the beacon's intended baseY (avoids picking a roof far above).
-      const intersects = this.raycaster.intersectObjects(this.interactiveObjects, true);
-      if (intersects.length > 0) {
-        const desiredY = (group.userData && typeof group.userData.baseY === 'number') ? group.userData.baseY : 1.5;
-        let best = null;
-        let bestDiff = Infinity;
-        for (let i = 0; i < intersects.length; i++) {
-          const it = intersects[i];
-          if (!it.object || !it.object.userData || it.object.userData.type !== 'glb_mesh') continue;
-          const diff = Math.abs(it.point.y - desiredY);
-          if (diff < bestDiff) {
-            bestDiff = diff;
-            best = it;
-          }
-        }
-
-        // Only accept a hit if it's reasonably close vertically (within 10 units)
-        if (best && bestDiff <= 10) {
-          const surfaceY = best.point.y;
-          group.userData = group.userData || {};
-          group.userData.baseY = surfaceY;
-          group.position.y = surfaceY + 0.4; // keep a small visual offset above surface
-        }
-      }
-    });
-  }
-
-  /**
-   * Corrects the notice board prop's asset-pack transform in place (see the
-   * comment on `noticeBoard` in locations.js) and wires it into the same
-   * hover/raycast pipeline the floating hotspot beacons use.
+   * Wires the notice board mesh into the hover/raycast pipeline. The board is
+   * part of the normalized model, so it already sits correctly on its wall -
+   * we only make it clickable here (no transform override).
    *
    * @param {THREE.Mesh} mesh - The "Message_Board" mesh from the loaded GLB
    */
   setupNoticeBoard(mesh) {
-    mesh.scale.setScalar(noticeBoard.scale);
-    mesh.position.set(noticeBoard.position.x, noticeBoard.position.y, noticeBoard.position.z);
-
     // Clone the material so the hover-highlight emissive tint doesn't leak
     // into any other mesh sharing the same imported material instance.
     if (Array.isArray(mesh.material)) {

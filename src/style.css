@@ -393,6 +393,63 @@ body, html {
   width: 250px;
 }
 
+/* --- Bottom-center interaction control bar --- */
+.tour-controls {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  pointer-events: auto;
+  z-index: 4;
+}
+
+.tour-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 10, 15, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f5f5f5;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 10px 18px;
+  border-radius: 24px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  transition: all 0.25s ease;
+}
+
+.tour-btn:hover {
+  border-color: rgba(241, 164, 0, 0.5);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5), 0 0 12px rgba(241, 164, 0, 0.25);
+  transform: translateY(-2px);
+}
+
+.tour-btn[aria-pressed="true"] {
+  background: linear-gradient(135deg, #8A1538 0%, #a61c46 100%);
+  border-color: rgba(241, 164, 0, 0.6);
+}
+
+.tour-btn .tb-icon {
+  font-size: 1.05rem;
+}
+
+@media (max-width: 768px) {
+  .tour-controls {
+    bottom: 14px;
+    gap: 8px;
+  }
+  .tour-btn {
+    padding: 9px 14px;
+    font-size: 0.78rem;
+  }
+}
+
 .hud-top-right p {
   font-size: 0.8rem;
   margin-bottom: 8px;
@@ -514,6 +571,46 @@ body, html {
   font-size: 0.95rem;
   line-height: 1.6;
   color: #ccc;
+  white-space: pre-line; /* honour the \n\n status breaks */
+}
+
+.info-image {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.info-fact-wrap {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 18px;
+  padding: 12px 14px;
+  background: rgba(241, 164, 0, 0.08);
+  border: 1px solid rgba(241, 164, 0, 0.25);
+  border-left: 3px solid #F1A400;
+  border-radius: 6px;
+}
+
+.info-fact-icon {
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+
+.info-fact {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #f0d8a8;
+  font-style: italic;
+}
+
+/* Allow the info card to scroll when image + fun fact make it tall */
+.info-panel-content {
+  overflow-y: auto;
 }
 
 /* --- Notice Board Image Lightbox / Gallery Modal --- */
