@@ -49,7 +49,7 @@ function init() {
   controls = new TourControls(camera, renderer.domElement, collidableObjects);
 
   // Instantiate interactions (beacons, spotlights, and toggles)
-  interactions = new TourInteractions(scene, camera, controls);
+  interactions = new TourInteractions(scene, camera, controls, sceneData);
 
   // Load the campus model
   loadCampusModel();
@@ -212,6 +212,14 @@ function bindUIEvents() {
       interactions.closeNoticeBoard();
     }
   });
+
+  // Global Light Toggle Button
+  const btnToggleLight = document.getElementById('btn-toggle-global-light');
+  if (btnToggleLight) {
+    btnToggleLight.addEventListener('click', () => {
+      if (interactions) interactions.toggleLight();
+    });
+  }
 }
 
 function startTour() {

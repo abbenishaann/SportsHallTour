@@ -111,7 +111,7 @@ export function createScene(container) {
   // Road, parking lot, kerbs, and lamp posts in front of the hall entrance.
   // See environment.js for why this uses the app's own hotspot/camera
   // coordinate frame rather than the GLB model's internal coordinates.
-  createExteriorEnvironment(scene);
+  const outdoorLamps = createExteriorEnvironment(scene);
 
   // Grid Helper aligned with UTM campus coordinate system
   const gridHelper = new THREE.GridHelper(groundSize, 60, 0x8A1538, 0x3d3d3d);
@@ -142,6 +142,7 @@ export function createScene(container) {
     sunLight, 
     hemiLight, 
     ground, 
+    outdoorLamps,
     destroy 
   };
 }
