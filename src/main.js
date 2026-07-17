@@ -75,7 +75,7 @@ function init() {
   controls = new TourControls(camera, renderer.domElement, collidableObjects);
 
   // Instantiate interactions (beacons, spotlights, and toggles)
-  interactions = new TourInteractions(scene, camera, controls);
+  interactions = new TourInteractions(scene, camera, controls, sceneData);
 
   // Load the campus model
   loadCampusModel();
@@ -350,6 +350,15 @@ function toggleDayNight() {
   // Mark the HUD checklist item for toggling the lights.
   const chkLight = document.getElementById('chk-light');
   if (chkLight) chkLight.classList.add('checked');
+
+  // Global Light Toggle Button
+  const btnToggleLight = document.getElementById('btn-toggle-global-light');
+  if (btnToggleLight) {
+    btnToggleLight.addEventListener('click', () => {
+      if (interactions) interactions.toggleLight();
+    });
+  }
+
 }
 
 function startTour() {

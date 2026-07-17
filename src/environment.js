@@ -186,6 +186,7 @@ function createDecorativeLampPost(scene, x, z) {
   group.add(light);
 
   scene.add(group);
+  return { bulb, light };
 }
 
 /**
@@ -200,7 +201,11 @@ function createParkingLotLighting(scene) {
     [-PARKING_HALF_WIDTH + 1, farZ],
     [PARKING_HALF_WIDTH - 1, farZ]
   ];
-  positions.forEach(([x, z]) => createDecorativeLampPost(scene, x, z));
+  const lamps = [];
+  positions.forEach(([x, z]) => {
+    lamps.push(createDecorativeLampPost(scene, x, z));
+  });
+  return lamps;
 }
 
 /**
@@ -219,5 +224,5 @@ export function createExteriorEnvironment(scene) {
   createParkingLot(scene);
   createRoad(scene);
   createGrassVerges(scene);
-  createParkingLotLighting(scene);
+  return createParkingLotLighting(scene);
 }

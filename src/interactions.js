@@ -13,11 +13,13 @@ export class TourInteractions {
    * @param {THREE.Scene} scene - The active scene
    * @param {THREE.Camera} camera - The active camera
    * @param {TourControls} controls - The controls manager instance
+   * @param {Object} sceneData - Scene lighting references
    */
-  constructor(scene, camera, controls) {
+  constructor(scene, camera, controls, sceneData) {
     this.scene = scene;
     this.camera = camera;
     this.controls = controls;
+    this.sceneData = sceneData;
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
@@ -581,6 +583,43 @@ export class TourInteractions {
       this.lampBulbMaterial.color.setHex(bulbColor);
       this.lampBulbMaterial.emissive.setHex(bulbEmissive);
       this.lampBulbMaterial.emissiveIntensity = emissiveInt;
+    }
+
+    // Toggle Global Scene Lights
+    if (this.sceneData) {
+      const ambientIntensity = this.lightOn ? 0.6 : 0.05;
+      const sunIntensity = this.lightOn ? 1.2 : 0.02;
+      const hemiIntensity = this.lightOn ? 0.4 : 0.02;
+      
+      if (this.sceneData.ambientLight) {
+         new TWEEN.Tween(this.sceneData.ambientLight).to({ intensity: ambientIntensity }, 600).start();
+      }
+      if (this.sceneData.sunLight) {
+         new TWEEN.Tween(this.sceneData.sunLight).to({ intensity: sunIntensity }, 600).start();
+      }
+      if (this.sceneData.hemiLight) {
+         new TWEEN.Tween(this.sceneData.hemiLight).to({ intensity: hemiIntensity }, 600).start();
+      }
+
+      // Toggle Outdoor Lamps (from environment.js)
+      if (this.sceneData.outdoorLamps) {
+        this.sceneData.outdoorLamps.forEach((lamp) => {
+          const targetLightIntensity = this.lightOn ? 3.5 : 0;
+          new TWEEN.Tween(lamp.light)
+            .to({ intensity: targetLightIntensity }, 400)
+            .start();
+
+          if (lamp.bulb && lamp.bulb.material) {
+            const bulbColor = this.lightOn ? 0xffffff : 0x444444;
+            const bulbEmissive = this.lightOn ? 0xfff2d4 : 0x000000;
+            const emissiveInt = this.lightOn ? 1.3 : 0.0;
+            
+            lamp.bulb.material.color.setHex(bulbColor);
+            lamp.bulb.material.emissive.setHex(bulbEmissive);
+            lamp.bulb.material.emissiveIntensity = emissiveInt;
+          }
+        });
+      }
     }
 
     // Trigger HTML panel for light info
