@@ -40,17 +40,39 @@ export const hotspots = [
   id: "basketball",
   name: "Basketball Court",
   description: "Used for basketball matches, training sessions and student activities.",
-  position: { x: -8, y: 1.5, z: -6 },
-  cameraLook: { x: -8, y: 1.5, z: -12 }
+  position: { x: -10, y: 1.5, z: -6 },
+  cameraLook: { x: -10, y: 1.5, z: -12 }
 },
 {
   id: "equipment",
   name: "Sports Equipment Area",
   description: "Storage area containing sports equipment used for training and events.",
-  position: { x: 10, y: 1.5, z: -4 },
-  cameraLook: { x: 10, y: 1.5, z: -8 }
+  position: { x: 12, y: 1.5, z: -4 },
+  cameraLook: { x: 12, y: 1.5, z: -8 }
 }
 ];
+
+/**
+ * Notice board prop (mesh name "Message_Board" inside the GLB).
+ * The source asset was imported at an unrelated scale/pivot: its raw world
+ * height is ~13 units, floating at y ~9-22, far above the walkable camera
+ * (y ~2-3). `scale` and `position` below correct it in place (after GLB load,
+ * see TourInteractions.setupNoticeBoard) to a human-scale board mounted near
+ * the lobby, without editing the .glb file itself.
+ */
+export const noticeBoard = {
+  id: "notice_board",
+  name: "Volleyball Coaching Notice Board",
+  meshName: "Message_Board",
+  scale: 0.016,
+  position: { x: 3.26, y: 0.9, z: 0.89 },
+  images: [
+    {
+      src: "/images/board/volleyball-coaching-board.png",
+      caption: "FIVB Volleyball Coaching Techniques — Serving (Jump Spin / Jump Float Serve) & Passing (Low Reception)"
+    }
+  ]
+};
 
 export const collisionBounds = {
   minX: -45,

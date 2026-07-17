@@ -24,6 +24,11 @@ const hudOverlay = document.getElementById('hud-overlay');
 const infoPanel = document.getElementById('info-panel');
 const infoCloseBtn = document.getElementById('info-close');
 
+const boardModal = document.getElementById('board-modal');
+const boardModalCloseBtn = document.getElementById('board-modal-close');
+const boardNavPrevBtn = document.getElementById('board-nav-prev');
+const boardNavNextBtn = document.getElementById('board-nav-next');
+
 // 2. Initialize application
 function init() {
   const container = document.getElementById('canvas-container');
@@ -179,6 +184,33 @@ function bindUIEvents() {
   // Click info panel close button
   infoCloseBtn.addEventListener('click', () => {
     infoPanel.classList.add('hidden');
+  });
+
+  // Notice board gallery modal controls
+  boardModalCloseBtn.addEventListener('click', () => {
+    interactions.closeNoticeBoard();
+  });
+
+  boardNavPrevBtn.addEventListener('click', () => {
+    interactions.navigateBoardImage(-1);
+  });
+
+  boardNavNextBtn.addEventListener('click', () => {
+    interactions.navigateBoardImage(1);
+  });
+
+  // Click outside the modal content closes it
+  boardModal.addEventListener('click', (event) => {
+    if (event.target === boardModal) {
+      interactions.closeNoticeBoard();
+    }
+  });
+
+  // ESC closes the notice board modal
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !boardModal.classList.contains('hidden')) {
+      interactions.closeNoticeBoard();
+    }
   });
 }
 

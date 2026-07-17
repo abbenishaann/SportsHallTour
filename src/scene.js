@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { defaultSettings } from './locations.js';
+import { createExteriorEnvironment } from './environment.js';
 
 /**
  * Creates and initializes the core Three.js scene elements.
@@ -106,6 +107,11 @@ export function createScene(container) {
   path.position.set(0, 0.01, 10); // Placed slightly above ground to prevent z-fighting
   path.receiveShadow = true;
   scene.add(path);
+
+  // Road, parking lot, kerbs, and lamp posts in front of the hall entrance.
+  // See environment.js for why this uses the app's own hotspot/camera
+  // coordinate frame rather than the GLB model's internal coordinates.
+  createExteriorEnvironment(scene);
 
   // Grid Helper aligned with UTM campus coordinate system
   const gridHelper = new THREE.GridHelper(groundSize, 60, 0x8A1538, 0x3d3d3d);

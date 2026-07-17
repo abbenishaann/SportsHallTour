@@ -516,6 +516,133 @@ body, html {
   color: #ccc;
 }
 
+/* --- Notice Board Image Lightbox / Gallery Modal --- */
+.board-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(8, 6, 10, 0.8);
+  backdrop-filter: blur(8px);
+  padding: 20px;
+}
+
+.board-modal-content {
+  position: relative;
+  background: rgba(18, 14, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(138, 21, 56, 0.25);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  padding: 30px;
+  overflow-y: auto;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.board-modal-close {
+  top: 16px;
+  right: 16px;
+}
+
+#board-modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 8px 0 20px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.board-modal-viewer {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.board-modal-viewer img {
+  max-width: 100%;
+  max-height: 65vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+.board-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(15, 10, 15, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s;
+  z-index: 1;
+}
+
+.board-nav-btn:hover {
+  background: rgba(138, 21, 56, 0.6);
+  border-color: rgba(241, 164, 0, 0.5);
+}
+
+.board-nav-prev {
+  left: 10px;
+}
+
+.board-nav-next {
+  right: 10px;
+}
+
+.board-modal-caption {
+  margin-top: 18px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #ccc;
+  text-align: center;
+}
+
+.board-modal-counter {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #F1A400;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+@media (max-width: 768px) {
+  .board-modal-content {
+    padding: 20px;
+    max-height: 85vh;
+  }
+  #board-modal-title {
+    font-size: 1.2rem;
+  }
+  .board-modal-viewer img {
+    max-height: 50vh;
+  }
+  .board-nav-btn {
+    width: 34px;
+    height: 34px;
+  }
+}
+
 /* --- Touch Screen Device Rules --- */
 .mobile-only {
   display: none;

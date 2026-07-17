@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as TWEEN from '@tweenjs/tween.js';
-import { hotspots } from './locations.js';
+import { hotspots, noticeBoard } from './locations.js';
 
 /**
  * TourInteractions
@@ -24,6 +24,7 @@ export class TourInteractions {
 
     // Registry for interactive objects
     this.interactiveObjects = [];
+    this.hotspotObjects = []; // Prioritized hotspots for raycasting
     this.hoveredObject = null;
     this.originalEmissive = new Map(); // Store original emissive colors
 
@@ -34,6 +35,10 @@ export class TourInteractions {
     this.lightOn = true;
     this.campusSpotLight = null;
     this.lampBulbMesh = null;
+
+    // Notice board gallery state
+    this.noticeBoardMesh = null;
+    this.boardImageIndex = 0;
 
     this.init();
   }
@@ -53,8 +58,11 @@ export class TourInteractions {
       if (spot.id === "light_switch") return;
 
       const group = new THREE.Group();
-      group.position.set(spot.position.x, spot.position.y + 0.5, spot.position.z);
+        group.position.set(spot.position.x, spot.position.y + 0.4, spot.position.z);
       group.name = `beacon_${spot.id}`;
+      // store the hotspot's base Y on the group so animation uses correct reference
+      group.userData = group.userData || {};
+      group.userData.baseY = spot.position.y;
 
       // Outer gold ring
       const ringGeo = new THREE.TorusGeometry(0.3, 0.05, 8, 24);
@@ -68,6 +76,7 @@ export class TourInteractions {
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.rotation.x = Math.PI / 2;
       ring.castShadow = true;
+      ring.renderOrder = 999;
       group.add(ring);
 
       // Inner pulse diamond (Octahedron)
@@ -77,12 +86,26 @@ export class TourInteractions {
         emissive: 0x8A1538,
         emissiveIntensity: 0.3,
         roughness: 0.2,
-        metalness: 0.5
+        metalness: 0.5,
+        depthTest: false,
+        depthWrite: false,
+        transparent: true,
+        opacity: 0.95
       });
       const core = new THREE.Mesh(coreGeo, coreMat);
       core.position.y = 0;
       core.castShadow = true;
+      core.renderOrder = 999;
       group.add(core);
+
+      // Ensure beacon components render on top of scene geometry so they're
+      // visible when partially inside walls. Disable depth test/write and set
+      // double-sided rendering where applicable.
+      ring.material.depthTest = false;
+      ring.material.depthWrite = false;
+      ring.material.transparent = true;
+      ring.material.opacity = 0.95;
+      ring.material.side = THREE.DoubleSide;
 
       // Save custom identification metadata on child meshes for Raycasting
       ring.userData = { type: 'hotspot', id: spot.id, parentGroup: group };
@@ -93,6 +116,7 @@ export class TourInteractions {
       
       // Register both for raycasting
       this.interactiveObjects.push(ring, core);
+      this.hotspotObjects.push(ring, core);
     });
   }
 
@@ -191,8 +215,11 @@ export class TourInteractions {
   checkHover() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     
-    // We search all interactive elements, and also check child meshes of sub-hierarchies
-    const intersects = this.raycaster.intersectObjects(this.interactiveObjects, true);
+    // Prioritize hotspot beacon geometry over normal GLB meshes so hotspots are clickable through the scene.
+    const hotspotIntersects = this.raycaster.intersectObjects(this.hotspotObjects, true);
+    const intersects = hotspotIntersects.length > 0
+      ? hotspotIntersects
+      : this.raycaster.intersectObjects(this.interactiveObjects, true);
 
     if (intersects.length > 0) {
       // Find the first valid interactive mesh
@@ -223,7 +250,8 @@ export class TourInteractions {
           if (hoverText) {
             let name = hitMesh.name || hitMesh.userData.type;
             if (hitMesh.userData.id) {
-              const spot = hotspots.find(s => s.id === hitMesh.userData.id);
+              const spot = hotspots.find(s => s.id === hitMesh.userData.id)
+                || (hitMesh.userData.id === noticeBoard.id ? noticeBoard : null);
               if (spot) name = spot.name;
             }
             hoverText.textContent = name;
@@ -259,7 +287,11 @@ export class TourInteractions {
     // Only check clicks if mouse is not clicking on HTML elements (HUD overlays, panels)
     // Three.js Raycaster checks WebGL scene elements
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.interactiveObjects, true);
+
+    const hotspotIntersects = this.raycaster.intersectObjects(this.hotspotObjects, true);
+    const intersects = hotspotIntersects.length > 0
+      ? hotspotIntersects
+      : this.raycaster.intersectObjects(this.interactiveObjects, true);
 
     if (intersects.length > 0) {
       let hitMesh = intersects[0].object;
@@ -283,6 +315,8 @@ export class TourInteractions {
           this.triggerHotspot(data.id);
         } else if (data.type === 'light_switch') {
           this.toggleLight();
+        } else if (data.type === 'notice_board') {
+          this.openNoticeBoard();
         }
       }
     }
@@ -386,16 +420,156 @@ export class TourInteractions {
    */
   registerGLBModels(model) {
     model.traverse((child) => {
-      if (child.isMesh) {
-        // Push to interactives list to allow clicking and console logging of its details
-        this.interactiveObjects.push(child);
-        
-        // Add identification tag in user data
-        if (!child.userData.type) {
-          child.userData.type = 'glb_mesh';
+      if (!child.isMesh) return;
+
+      // The notice board prop gets special handling (repositioned + made a
+      // gallery-opening hotspot) instead of the generic glb_mesh treatment.
+      if (child.name === noticeBoard.meshName) {
+        this.setupNoticeBoard(child);
+        return;
+      }
+
+      // Push to interactives list to allow clicking and console logging of its details
+      this.interactiveObjects.push(child);
+
+      // Add identification tag in user data
+      if (!child.userData.type) {
+        child.userData.type = 'glb_mesh';
+      }
+    });
+    // After registering model meshes, adjust beacon base heights so they sit above actual geometry
+    this._adjustBeaconsToScene();
+  }
+
+  /**
+   * Raycast from above each beacon to detect the nearest GLB surface below and
+   * update the beacon's stored baseY and world position so it won't be hidden
+   * inside the imported model geometry.
+   */
+  _adjustBeaconsToScene() {
+    if (!this.beacons || this.beacons.length === 0) return;
+
+    const down = new THREE.Vector3(0, -1, 0);
+    const origin = new THREE.Vector3();
+
+    this.beacons.forEach((group) => {
+      // Raycast from far above the beacon's X,Z coordinate
+      origin.set(group.position.x, 50, group.position.z);
+      this.raycaster.set(origin, down);
+
+      // Intersect with all known scene meshes and pick the GLB mesh hit whose Y
+      // is closest to the beacon's intended baseY (avoids picking a roof far above).
+      const intersects = this.raycaster.intersectObjects(this.interactiveObjects, true);
+      if (intersects.length > 0) {
+        const desiredY = (group.userData && typeof group.userData.baseY === 'number') ? group.userData.baseY : 1.5;
+        let best = null;
+        let bestDiff = Infinity;
+        for (let i = 0; i < intersects.length; i++) {
+          const it = intersects[i];
+          if (!it.object || !it.object.userData || it.object.userData.type !== 'glb_mesh') continue;
+          const diff = Math.abs(it.point.y - desiredY);
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            best = it;
+          }
+        }
+
+        // Only accept a hit if it's reasonably close vertically (within 10 units)
+        if (best && bestDiff <= 10) {
+          const surfaceY = best.point.y;
+          group.userData = group.userData || {};
+          group.userData.baseY = surfaceY;
+          group.position.y = surfaceY + 0.4; // keep a small visual offset above surface
         }
       }
     });
+  }
+
+  /**
+   * Corrects the notice board prop's asset-pack transform in place (see the
+   * comment on `noticeBoard` in locations.js) and wires it into the same
+   * hover/raycast pipeline the floating hotspot beacons use.
+   *
+   * @param {THREE.Mesh} mesh - The "Message_Board" mesh from the loaded GLB
+   */
+  setupNoticeBoard(mesh) {
+    mesh.scale.setScalar(noticeBoard.scale);
+    mesh.position.set(noticeBoard.position.x, noticeBoard.position.y, noticeBoard.position.z);
+
+    // Clone the material so the hover-highlight emissive tint doesn't leak
+    // into any other mesh sharing the same imported material instance.
+    if (Array.isArray(mesh.material)) {
+      mesh.material = mesh.material.map(m => m.clone());
+    } else if (mesh.material) {
+      mesh.material = mesh.material.clone();
+    }
+
+    mesh.userData.type = 'notice_board';
+    mesh.userData.id = noticeBoard.id;
+
+    this.interactiveObjects.push(mesh);
+    this.hotspotObjects.push(mesh); // Prioritize like other hotspots for raycasting
+    this.noticeBoardMesh = mesh;
+  }
+
+  /**
+   * Opens the image lightbox/gallery for the notice board.
+   */
+  openNoticeBoard() {
+    const modal = document.getElementById('board-modal');
+    if (!modal) return;
+
+    this.boardImageIndex = 0;
+    this.updateBoardModalImage();
+    modal.classList.remove('hidden');
+
+    // Mark HUD checklist item (this board is one of the discoverable hotspots)
+    const chkHotspot = document.getElementById('chk-hotspots');
+    if (chkHotspot) chkHotspot.classList.add('checked');
+  }
+
+  /**
+   * Closes the notice board gallery modal.
+   */
+  closeNoticeBoard() {
+    const modal = document.getElementById('board-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  /**
+   * Steps the gallery forward/backward and wraps around at the ends.
+   * @param {number} delta - +1 for next, -1 for previous
+   */
+  navigateBoardImage(delta) {
+    const images = noticeBoard.images;
+    this.boardImageIndex = (this.boardImageIndex + delta + images.length) % images.length;
+    this.updateBoardModalImage();
+  }
+
+  /**
+   * Syncs the modal DOM to the current boardImageIndex.
+   */
+  updateBoardModalImage() {
+    const images = noticeBoard.images;
+    const current = images[this.boardImageIndex];
+
+    const modalImg = document.getElementById('board-modal-image');
+    const caption = document.getElementById('board-modal-caption');
+    const counter = document.getElementById('board-modal-counter');
+    const prevBtn = document.getElementById('board-nav-prev');
+    const nextBtn = document.getElementById('board-nav-next');
+
+    if (modalImg) {
+      modalImg.src = current.src;
+      modalImg.alt = current.caption || noticeBoard.name;
+    }
+    if (caption) caption.textContent = current.caption || '';
+    if (counter) counter.textContent = images.length > 1 ? `${this.boardImageIndex + 1} / ${images.length}` : '';
+
+    // Hide navigation entirely when there's nothing to navigate between
+    const showNav = images.length > 1;
+    if (prevBtn) prevBtn.style.display = showNav ? 'flex' : 'none';
+    if (nextBtn) nextBtn.style.display = showNav ? 'flex' : 'none';
   }
 
   /**
@@ -409,10 +583,13 @@ export class TourInteractions {
     // 2. Animate beacons (bounce up and down, spin around)
     this.beacons.forEach((group, index) => {
       group.rotation.y += 0.015;
-      
+
       // Unique phase offset per beacon for organic feel
       const phase = time * 2.5 + index * Math.PI / 3;
-      group.position.y = (hotspots[index]?.position?.y || 1.5) + 0.3 + Math.sin(phase) * 0.08;
+      // Use the stored baseY from the group's userData so skipping the light_switch doesn't
+      // desynchronize indices when hotspots were filtered during creation.
+      const baseY = (group.userData && typeof group.userData.baseY === 'number') ? group.userData.baseY : 1.5;
+      group.position.y = baseY + 0.4 + Math.sin(phase) * 0.08;
     });
   }
 
@@ -421,5 +598,6 @@ export class TourInteractions {
     this.beacons.forEach(b => this.scene.remove(b));
     this.beacons = [];
     this.interactiveObjects = [];
+    this.hotspotObjects = [];
   }
 }
