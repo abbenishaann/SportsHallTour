@@ -34,7 +34,22 @@ export const hotspots = [
     description: "UTM is committed to a green, sustainable campus. This interactive controller toggles the main arena floodlights. Toggle it off when leaving the hall to support the university's energy conservation campaign.",
     position: { x: 6, y: 1.5, z: 6 },
     cameraLook: { x: 6, y: 1.5, z: 10 }
-  }
+  },
+
+  {
+  id: "basketball",
+  name: "Basketball Court",
+  description: "Used for basketball matches, training sessions and student activities.",
+  position: { x: -8, y: 1.5, z: -6 },
+  cameraLook: { x: -8, y: 1.5, z: -12 }
+},
+{
+  id: "equipment",
+  name: "Sports Equipment Area",
+  description: "Storage area containing sports equipment used for training and events.",
+  position: { x: 10, y: 1.5, z: -4 },
+  cameraLook: { x: 10, y: 1.5, z: -8 }
+}
 ];
 
 export const collisionBounds = {
